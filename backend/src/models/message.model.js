@@ -12,9 +12,17 @@ const messageSchema = new mongoose.Schema(
       ref: "User",
       required: true,
     },
-    text: {
+  
+    // 🔐 E2EE fields
+    encryptedMessage: {
       type: String,
+      required: true,
     },
+    nonce: {
+      type: String,
+      required: true,
+    },
+
     image: {
       type: String,
     },

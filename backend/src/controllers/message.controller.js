@@ -26,7 +26,9 @@ export const getMessages = async (req, res) => {
         { senderId: myId, receiverId: userToChatId },
         { senderId: userToChatId, receiverId: myId },
       ],
-    });
+    }).sort({ createdAt: 1 });
+
+    console.log(messages);
 
     res.status(200).json(messages);
   } catch (error) {
@@ -34,16 +36,29 @@ export const getMessages = async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 };
-
 export const sendMessage = async (req, res) => {
   try {
-    const { text, image } = req.body;
+    const { encryptedMessage, nonce, image } = req.body;
     const { id: receiverId } = req.params;
+
+
+    const receiver = await User.findById(receiverId);
+
+if (!receiver || !receiver.publicKey) {
+  return res.status(404).json({ message: "Receiver not found or public key not available" });
+}
     const senderId = req.user._id;
+
+    if (!encryptedMessage || !nonce) {
+      return res.status(400).json({
+        message: "Encrypted message and nonce required",
+      });
+    }
+    console.log("encrypted message", encryptedMessage, nonce);
+
 
     let imageUrl;
     if (image) {
-      // Upload base64 image to cloudinary
       const uploadResponse = await cloudinary.uploader.upload(image);
       imageUrl = uploadResponse.secure_url;
     }
@@ -51,20 +66,23 @@ export const sendMessage = async (req, res) => {
     const newMessage = new Message({
       senderId,
       receiverId,
-      text,
+      encryptedMessage,
+      nonce,
       image: imageUrl,
     });
 
     await newMessage.save();
 
     const receiverSocketId = getReceiverSocketId(receiverId);
+
     if (receiverSocketId) {
       io.to(receiverSocketId).emit("newMessage", newMessage);
     }
 
     res.status(201).json(newMessage);
+
   } catch (error) {
-    console.log("Error in sendMessage controller: ", error.message);
+    console.log("Error in sendMessage controller:", error.message);
     res.status(500).json({ error: "Internal server error" });
   }
 };
