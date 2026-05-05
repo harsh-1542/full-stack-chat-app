@@ -25,7 +25,12 @@ const ChatContainer = () => {
     subscribeToMessages();
 
     return () => unsubscribeFromMessages();
-  }, [selectedUser._id, getMessages, subscribeToMessages, unsubscribeFromMessages]);
+  }, [
+    selectedUser._id,
+    getMessages,
+    subscribeToMessages,
+    unsubscribeFromMessages,
+  ]);
 
   useEffect(() => {
     if (messageEndRef.current && messages) {
@@ -79,7 +84,9 @@ const ChatContainer = () => {
                   className="sm:max-w-[200px] rounded-md mb-2"
                 />
               )}
-              {message.text && <p> {message.text || "🔒 Unable to decrypt message"}</p>}
+              {typeof message.text === "string" && message.text && (
+                <p> {message.text || "🔒 Unable to decrypt message"}</p>
+              )}
             </div>
           </div>
         ))}

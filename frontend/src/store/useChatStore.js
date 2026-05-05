@@ -16,7 +16,7 @@ export const useChatStore = create((set, get) => ({
     try {
       const res = await axiosInstance.get("/messages/users");
 
-      console.log("Users:", res.data);
+      // console.log("Users:", res.data);
       set({ users: res.data });
     } catch (error) {
       toast.error(error.response.data.message);
@@ -25,130 +25,123 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
- getMessages: async (userId) => {
-  set({ isMessagesLoading: true });
+  getMessages: async (userId) => {
+    set({ isMessagesLoading: true });
 
-  try {
-    const res = await axiosInstance.get(`/messages/${userId}`);
-    const { authUser } = useAuthStore.getState();
+    try {
+      const res = await axiosInstance.get(`/messages/${userId}`);
+      const { authUser } = useAuthStore.getState();
 
-    const myPrivateKey = localStorage.getItem("privateKey");
+      const myPrivateKey = localStorage.getItem("privateKey");
 
-    if (!myPrivateKey) {
-      toast.error("Missing private key");
-      return;
-    }
-
-    const decryptedMessages = await Promise.all(
-      res.data.map(async (msg) => {
-        const isMe = msg.senderId === authUser._id;
-
-        const senderPublicKey = isMe
-          ? authUser.publicKey
-          : get().selectedUser.publicKey;
-
-        const text = await decryptMessage(
-          msg.encryptedMessage,
-          msg.nonce,
-          senderPublicKey,
-          myPrivateKey
-        );
-
-        return { ...msg, text };
-      })
-    );
-
-    set({ messages: decryptedMessages });
-
-  } catch (error) {
-    console.log("error at get message", error);
-    toast.error(error.response?.data?.message || "Error fetching messages");
-  } finally {
-    set({ isMessagesLoading: false });
-  }
-},
-  sendMessage: async (text) => {
-  const { selectedUser, messages } = get();
-  const { authUser } = useAuthStore.getState();
-
-  console.log("selected user at chatstore:  ",selectedUser);
-
-  console.log("auth user at chatstore", authUser);
-
-  try {
-    const senderPrivateKey = localStorage.getItem("privateKey");
-    const receiverPublicKey = selectedUser.publicKey;
-
-    console.log(senderPrivateKey , " cdscce", receiverPublicKey);
-
-    if (!senderPrivateKey || !receiverPublicKey) {
-      toast.error("Encryption keys missing");
-      return;
-    }
-
-    // 🔐 Encrypt message
-    const { encryptedMessage, nonce } = await encryptMessage(
-      text,
-      receiverPublicKey,
-      senderPrivateKey
-    );
-
-    // 📡 Send encrypted
-    const res = await axiosInstance.post(
-      `/messages/send/${selectedUser._id}`,
-      {
-        encryptedMessage,
-        nonce,
+      if (!myPrivateKey) {
+        toast.error("Missing private key");
+        return;
       }
-    );
 
-    // Add encrypted message (decrypt below if needed)
-    set({ messages: [...messages, { ...res.data, text }] });
+      const decryptedMessages = await Promise.all(
+        res.data.map(async (msg) => {
+          const msgSenderId = msg.senderId?._id || msg.senderId;
+          const msgReceiverId = msg.receiverId?._id || msg.receiverId;
+          const isCurrentUserSender =
+            msgSenderId?.toString() === authUser._id?.toString();
+          const isCurrentUserReceiver =
+            msgReceiverId?.toString() === authUser._id?.toString();
 
-  } catch (error) {
-    console.log("error at sending messgae",error)
-    toast.error("Failed to send message");
-  }
-},
+          const senderPublicKey = get().selectedUser?.publicKey;
+
+          const text = await decryptMessage(
+            msg.encryptedMessage,
+            msg.nonce,
+            senderPublicKey,
+            myPrivateKey,
+          );
+
+          return { ...msg, text, isCurrentUserSender, isCurrentUserReceiver };
+        }),
+      );
+
+      set({ messages: decryptedMessages });
+    } catch (error) {
+      console.log("error at get message", error);
+      toast.error(error.response?.data?.message || "Error fetching messages");
+    } finally {
+      set({ isMessagesLoading: false });
+    }
+  },
+  sendMessage: async (payload) => {
+    const { selectedUser, messages } = get();
+    const { authUser } = useAuthStore.getState();
+    const { text = "", image } = payload || {};
+
+    try {
+      const senderPrivateKey = localStorage.getItem("privateKey");
+      const receiverPublicKey = selectedUser?.publicKey;
+
+      if (!senderPrivateKey || !receiverPublicKey) {
+        toast.error("Encryption keys missing");
+        return;
+      }
+
+      // 🔐 Encrypt message text (may be empty when only sending an image)
+      const { encryptedMessage, nonce } = await encryptMessage(
+        text,
+        receiverPublicKey,
+        senderPrivateKey,
+      );
+
+      // 📡 Send encrypted message and optional image
+      const res = await axiosInstance.post(
+        `/messages/send/${selectedUser._id}`,
+        {
+          encryptedMessage,
+          nonce,
+          image,
+        },
+      );
+
+      set({ messages: [...messages, { ...res.data, text }] });
+    } catch (error) {
+      console.log("error at sending message", error);
+      toast.error("Failed to send message");
+    }
+  },
 
   subscribeToMessages: () => {
-  const { selectedUser } = get();
-  if (!selectedUser) return;
+    const { selectedUser } = get();
+    if (!selectedUser) return;
 
-  const socket = useAuthStore.getState().socket;
+    const socket = useAuthStore.getState().socket;
 
-  socket.on("newMessage", async (newMessage) => {
-    const { authUser } = useAuthStore.getState();
+    socket.on("newMessage", async (newMessage) => {
+      const { authUser } = useAuthStore.getState();
 
-    const isMessageFromSelectedUser =
-      newMessage.senderId === selectedUser._id;
+      const newMessageSenderId =
+        newMessage.senderId?._id || newMessage.senderId;
+      const selectedUserId = selectedUser._id?._id || selectedUser._id;
+      const isMessageFromSelectedUser =
+        newMessageSenderId?.toString() === selectedUserId?.toString();
 
-    if (!isMessageFromSelectedUser) return;
+      if (!isMessageFromSelectedUser) return;
 
-    const myPrivateKey = localStorage.getItem("privateKey");
+      const myPrivateKey = localStorage.getItem("privateKey");
 
-    if (!myPrivateKey) return;
+      if (!myPrivateKey) return;
 
-    const senderPublicKey =
-      newMessage.senderId === authUser._id
-        ? authUser.publicKey
-        : selectedUser.publicKey;
+      const senderPublicKey = selectedUser?.publicKey;
 
-    const text = await decryptMessage(
-      newMessage.encryptedMessage,
-      newMessage.nonce,
-      senderPublicKey,
-      myPrivateKey
-    );
+      const text = await decryptMessage(
+        newMessage.encryptedMessage,
+        newMessage.nonce,
+        senderPublicKey,
+        myPrivateKey,
+      );
 
-    set({
-      messages: [
-        ...get().messages,
-        { ...newMessage, text },
-      ],
+      set({
+        messages: [...get().messages, { ...newMessage, text }],
+      });
     });
-  });
-},
+  },
 
   unsubscribeFromMessages: () => {
     const socket = useAuthStore.getState().socket;

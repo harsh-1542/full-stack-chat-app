@@ -28,7 +28,7 @@ export const getMessages = async (req, res) => {
       ],
     }).sort({ createdAt: 1 });
 
-    console.log(messages);
+    // console.log(messages);
 
     res.status(200).json(messages);
   } catch (error) {
@@ -54,7 +54,7 @@ if (!receiver || !receiver.publicKey) {
         message: "Encrypted message and nonce required",
       });
     }
-    console.log("encrypted message", encryptedMessage, nonce);
+    // console.log("encrypted message", encryptedMessage, nonce);
 
 
     let imageUrl;
