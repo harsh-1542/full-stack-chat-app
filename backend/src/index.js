@@ -17,15 +17,28 @@
   const URL = process.env.URL;
   const __dirname = path.resolve();
 
-  app.use(express.json({ limit: "10mb" }));
-  app.use(cookieParser());
-  app.use(
-    cors({
-      origin: URL,
-      credentials: true,
-    }),
-  );
+const allowedOrigins = [
+  URL,
+  "https://full-stack-chat-ijolbio7k-harsh-1542s-projects.vercel.app",
+  "https://full-stack-chat-app-one-fawn.vercel.app",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+].filter(Boolean);
 
+app.use(express.json({ limit: "10mb" }));
+app.use(cookieParser());
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error(`CORS policy: origin ${origin} not allowed`));
+      }
+    },
+    credentials: true,
+  }),
+);
   app.use("/api/auth", authRoutes);
   app.use("/api/messages", messageRoutes);
 
