@@ -4,7 +4,8 @@ import toast from "react-hot-toast";
 import { generateKeyPair } from "../lib/crypto";
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
+const BASE_URL =
+  import.meta.env.MODE === "development" ? "http://localhost:5001" : "/";
 
 export const useAuthStore = create((set, get) => ({
   authUser: null,
@@ -18,14 +19,13 @@ export const useAuthStore = create((set, get) => ({
   checkAuth: async () => {
     try {
       const res = await axiosInstance.get("/auth/check");
-    
 
-    const privateKey = localStorage.getItem("privateKey");
+      const privateKey = localStorage.getItem("privateKey");
 
-    if (!privateKey) {
-      toast.error("No private key found. Please log in again.");
-      console.warn("No private key found — encryption will fail");
-    }
+      if (!privateKey) {
+        toast.error("No private key found. Please log in again.");
+        console.warn("No private key found — encryption will fail");
+      }
       set({ authUser: res.data });
       get().connectSocket();
     } catch (error) {
@@ -36,68 +36,73 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
- signup: async (data) => {
-  set({ isSigningUp: true });
+  signup: async (data) => {
+    set({ isSigningUp: true });
 
-  try {
-    const res = await axiosInstance.post("/auth/signup", data);
+    try {
+      const res = await axiosInstance.post("/auth/signup", data);
 
-    // 🔑 Generate keys
-    const { publicKey, privateKey } = await generateKeyPair();
+      // 🔑 Generate keys
+      const { publicKey, privateKey } = await generateKeyPair();
 
-    // Save public key to backend
-    const keyRes = await axiosInstance.post("/auth/public-key", { publicKey });
+      // Save public key to backend
+      const keyRes = await axiosInstance.post("/auth/public-key", {
+        publicKey,
+      });
 
-if (keyRes.status !== 200) {
-  toast.error("Failed to store public key");
-  throw new Error("Failed to store public key");
-}
-    // Store private key locally
-    localStorage.setItem("privateKey", privateKey);
+      if (keyRes.status !== 200) {
+        toast.error("Failed to store public key");
+        throw new Error("Failed to store public key");
+      }
+      // Store private key locally
+      localStorage.setItem("privateKey", privateKey);
 
-    set({ authUser: { ...res.data, publicKey } });
+      set({ authUser: { ...res.data, publicKey } });
 
-    toast.success("Account created successfully");
-    get().connectSocket();
-
-  } catch (error) {
-    console.log(error);
-    toast.error(error.response?.data?.message || "Signup failed");
-  } finally {
-    set({ isSigningUp: false });
-  }
-},
+      toast.success("Account created successfully");
+      get().connectSocket();
+    } catch (error) {
+      console.log(error);
+      toast.error(error.response?.data?.message || "Signup failed");
+    } finally {
+      set({ isSigningUp: false });
+    }
+  },
 
   login: async (data) => {
-  set({ isLoggingIn: true });
+    set({ isLoggingIn: true });
 
-  try {
-    const res = await axiosInstance.post("/auth/login", data);
+    try {
+      const res = await axiosInstance.post("/auth/login", data);
+      const user = res.data;
 
-    let privateKey = localStorage.getItem("privateKey");
+      set({ authUser: user });
+      const privateKey = localStorage.getItem("privateKey");
 
-    // 🔥 If no key → generate new (fallback)
-    if (!privateKey) {
-      const { publicKey, privateKey: newPrivateKey } = await generateKeyPair();
+      if (!privateKey) {
+        const { publicKey, privateKey: newPrivateKey } =
+          await generateKeyPair();
+        const keyRes = await axiosInstance.post("/auth/public-key", {
+          publicKey,
+        });
 
-      await axiosInstance.post("/auth/public-key", { publicKey });
+        if (keyRes.status !== 200) {
+          throw new Error("Failed to store public key");
+        }
 
-      localStorage.setItem("privateKey", newPrivateKey);
+        localStorage.setItem("privateKey", newPrivateKey);
+      }
 
-      privateKey = newPrivateKey;
+      toast.success("Logged in successfully");
+      get().connectSocket();
+    } catch (error) {
+      toast.error(
+        error.response?.data?.message || error.message || "Login failed",
+      );
+    } finally {
+      set({ isLoggingIn: false });
     }
-
-    set({ authUser: res.data });
-
-    toast.success("Logged in successfully");
-    get().connectSocket();
-
-  } catch (error) {
-    toast.error(error.response?.data?.message || "Login failed");
-  } finally {
-    set({ isLoggingIn: false });
-  }
-},
+  },
 
   logout: async () => {
     try {

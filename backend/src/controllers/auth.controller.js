@@ -11,7 +11,9 @@ export const signup = async (req, res) => {
     }
 
     if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+      return res
+        .status(400)
+        .json({ message: "Password must be at least 6 characters" });
     }
 
     const user = await User.findOne({ email });
@@ -100,7 +102,7 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadResponse.secure_url },
-      { new: true }
+      { new: true },
     );
 
     res.status(200).json(updatedUser);
@@ -113,18 +115,17 @@ export const updateProfile = async (req, res) => {
 export const checkAuth = (req, res) => {
   try {
     res.status(200).json({
-  _id: req.user._id,
-  fullName: req.user.fullName,
-  email: req.user.email,
-  profilePic: req.user.profilePic,
-  publicKey: req.user.publicKey || null,
-});
+      _id: req.user._id,
+      fullName: req.user.fullName,
+      email: req.user.email,
+      profilePic: req.user.profilePic,
+      publicKey: req.user.publicKey || null,
+    });
   } catch (error) {
     console.log("Error in checkAuth controller", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
-
 
 export const savePublicKey = async (req, res) => {
   try {
@@ -135,7 +136,7 @@ export const savePublicKey = async (req, res) => {
       return res.status(400).json({ message: "Public key required" });
     }
 
-     // basic validation (length check)
+    // basic validation (length check)
     if (typeof publicKey !== "string" || publicKey.length < 20) {
       return res.status(400).json({ message: "Invalid public key" });
     }
@@ -143,18 +144,17 @@ export const savePublicKey = async (req, res) => {
     console.log("public key ", publicKey);
     const user = await User.findById(userId);
 
-    // prevent overwriting repeatedly
-    if (user.publicKey) {
-      return res.status(400).json({
-        message: "Public key already exists",
-      });
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
     }
 
+    const isUpdate = Boolean(user.publicKey);
     user.publicKey = publicKey;
     await user.save();
 
-    res.status(200).json({ message: "Public key saved" });
-
+    res
+      .status(200)
+      .json({ message: isUpdate ? "Public key updated" : "Public key saved" });
   } catch (error) {
     console.log("Error saving public key:", error);
     res.status(500).json({ message: "Server error" });
