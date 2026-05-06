@@ -11,7 +11,7 @@ router.post("/logout", protectRoute, logout);
 
 router.put("/update-profile", protectRoute, updateProfile);
 
-router.post("/public-key", protectRoute, apiLimiter, savePublicKey);
+router.post("/public-key", apiLimiter, savePublicKey);
 
 router.get("/check", protectRoute, checkAuth);
 export default router;
