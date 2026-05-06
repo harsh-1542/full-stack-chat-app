@@ -40,20 +40,15 @@ export const useAuthStore = create((set, get) => ({
     set({ isSigningUp: true });
 
     try {
-      const res = await axiosInstance.post("/auth/signup", data);
-
-      // 🔑 Generate keys
+      // 🔑 Generate keys first
       const { publicKey, privateKey } = await generateKeyPair();
 
-      // Save public key to backend
-      const keyRes = await axiosInstance.post("/auth/public-key", {
+      // Signup with public key
+      const res = await axiosInstance.post("/auth/signup", {
+        ...data,
         publicKey,
       });
 
-      if (keyRes.status !== 200) {
-        toast.error("Failed to store public key");
-        throw new Error("Failed to store public key");
-      }
       // Store private key locally
       localStorage.setItem("privateKey", privateKey);
 

@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import cloudinary from "../lib/cloudinary.js";
 
 export const signup = async (req, res) => {
-  const { fullName, email, password } = req.body;
+  const { fullName, email, password, publicKey } = req.body;
   try {
     if (!fullName || !email || !password) {
       return res.status(400).json({ message: "All fields are required" });
@@ -27,6 +27,7 @@ export const signup = async (req, res) => {
       fullName,
       email,
       password: hashedPassword,
+      publicKey: publicKey || null,
     });
 
     if (newUser) {
