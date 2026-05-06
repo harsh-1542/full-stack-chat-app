@@ -21,6 +21,7 @@ const allowedOrigins = [
   URL,
   "https://full-stack-chat-ijolbio7k-harsh-1542s-projects.vercel.app",
   "https://full-stack-chat-app-one-fawn.vercel.app",
+  "https://chat-app.harshshrimali.in",
   "http://localhost:5173",
   "http://127.0.0.1:5173",
 ].filter(Boolean);
