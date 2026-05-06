@@ -80,7 +80,7 @@ if (keyRes.status !== 200) {
     if (!privateKey) {
       const { publicKey, privateKey: newPrivateKey } = await generateKeyPair();
 
-      await axiosInstance.post("/users/public-key", { publicKey });
+      await axiosInstance.post("/auth/public-key", { publicKey });
 
       localStorage.setItem("privateKey", newPrivateKey);
 
